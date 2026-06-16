@@ -1,0 +1,10 @@
+.venv/
+.env
+.spotify_cache
+out/
+__pycache__/
+node_modules/
+dist/
+.DS_Store
+.claude/
+framer-carousel/

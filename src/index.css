@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Design tokens ─────────────────────────────────────────────────────────── */
+:root {
+  --bg:       0 0% 7%;           /* #111 */
+  --surface:  0 0% 10%;          /* #1a1a1a */
+  --surface2: 0 0% 14%;          /* #242424 */
+  --accent:   141 69% 42%;       /* #1DB954 Spotify green */
+  --fg:       0 0% 100%;
+  --fg-2:     0 0% 60%;
+  --fg-3:     0 0% 38%;
+  --border:   0 0% 100% / 0.08;
+
+  --radius:    0.75rem;
+  --radius-sm: 0.375rem;
+  --radius-lg: 1rem;
+}
+
+/* ── Base ──────────────────────────────────────────────────────────────────── */
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    @apply bg-bg text-fg font-sans antialiased overflow-hidden;
+  }
+
+  ::-webkit-scrollbar { display: none; }
+  * { scrollbar-width: none; }
+}
+
+/* ── Ticker animation layer (transforms set by JS every rAF — unavoidable) ── */
+@layer components {
+  .ticker-wrap {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    will-change: transform;
+    opacity: 0;
+  }
+
+  .ticker-inner {
+    transform-origin: center center;
+    will-change: transform;
+    overflow: hidden;
+    border-radius: var(--radius-sm);
+  }
+
+  .ticker-card {
+    width: min(calc(100vw - 16px), max(33.333vw, 480px));
+    aspect-ratio: 1;
+    @apply bg-cover bg-center cursor-pointer select-none;
+  }
+
+  /* ── Sheet animations (Radix defers unmount until animationend) ── */
+  @keyframes overlay-show {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes overlay-hide {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+  }
+  @keyframes sheet-show {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+  @keyframes sheet-hide {
+    from { transform: translateY(0); }
+    to   { transform: translateY(100%); }
+  }
+
+  .sheet-overlay[data-state='open']   { animation: overlay-show 0.22s ease both; }
+  .sheet-overlay[data-state='closed'] { animation: overlay-hide 0.28s ease both; }
+  .sheet-content[data-state='open']   { animation: sheet-show 0.44s cubic-bezier(0.32,0.72,0,1) both; }
+  .sheet-content[data-state='closed'] { animation: sheet-hide 0.32s cubic-bezier(0.32,0.72,0,1) both; }
+}
