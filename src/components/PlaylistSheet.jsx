@@ -27,6 +27,7 @@ export function PlaylistSheet({ playlist, onClose }) {
         <Dialog.Content
           className="sheet-content fixed top-0 bottom-0 z-50 overflow-y-auto"
           aria-describedby={undefined}
+          onEscapeKeyDown={e => { e.preventDefault(); onClose() }}
         >
           {/* Close — fixed to viewport top-right; inside Content so focus trap allows taps on mobile */}
           <Dialog.Close className="fixed top-5 right-5 z-[60] flex items-center justify-center w-10 h-10 rounded-full bg-black/40 text-white/80 hover:text-white transition-colors">
