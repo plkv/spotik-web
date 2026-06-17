@@ -4,21 +4,25 @@ export function LoadingScreen({ items, onReady }) {
   const [idx, setIdx]       = useState(0)
   const [hiding, setHiding] = useState(false)
   const [hidden, setHidden] = useState(false)
-  const doneRef  = useRef(false)
-  const startRef = useRef(Date.now())
+  const loadedSrcs = useRef([])  // grows as images load; only these are shown
+  const doneRef    = useRef(false)
+  const startRef   = useRef(Date.now())
 
-  // Cycle thumbnails at ~220ms discrete cuts
+  // Cycle only through images that have already loaded
   useEffect(() => {
     if (items.length === 0) return
-    const id = setInterval(() => setIdx(i => (i + 1) % items.length), 100)
+    const id = setInterval(() => {
+      const len = loadedSrcs.current.length
+      if (len > 0) setIdx(i => (i + 1) % len)
+    }, 100)
     return () => clearInterval(id)
   }, [items.length])
 
-  // Preload all covers; wait at least 1.2s before revealing
+  // Preload all covers; add each to the pool on success, skip on error
   useEffect(() => {
     if (items.length === 0) { onReady(); return }
 
-    let loaded = 0
+    let settled = 0
     const MIN_MS = 1200
 
     function maybeReveal() {
@@ -33,15 +37,22 @@ export function LoadingScreen({ items, onReady }) {
 
     items.forEach(item => {
       const img = new Image()
-      img.onload = img.onerror = () => {
-        loaded++
-        if (loaded >= items.length) maybeReveal()
+      img.onload = () => {
+        loadedSrcs.current.push(item.cover)
+        settled++
+        if (settled >= items.length) maybeReveal()
+      }
+      img.onerror = () => {
+        settled++
+        if (settled >= items.length) maybeReveal()
       }
       img.src = item.cover
     })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (hidden) return null
+
+  const src = loadedSrcs.current[idx] ?? null
 
   return (
     <div
@@ -51,9 +62,9 @@ export function LoadingScreen({ items, onReady }) {
         transition: hiding ? 'opacity 0.3s ease' : 'none',
       }}
     >
-      {items[idx]?.cover && (
+      {src && (
         <img
-          src={items[idx].cover}
+          src={src}
           width={80}
           height={80}
           style={{ borderRadius: 6, objectFit: 'cover', display: 'block' }}
