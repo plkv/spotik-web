@@ -250,8 +250,11 @@ export class Ticker {
     const h       = this._cardH
 
     for (let slot = 0; slot < CONFIG.visibleCount; slot++) {
-      const idx  = mod(Math.floor(this._phase + slot), count)
-      const item = this.items[idx]
+      // Each slot owns a fixed item; items[slot % count] never changes between
+      // slots, so there is no cross-slot handover that would cause a position jump.
+      // The slot's u position cycles 0→1 continuously; the same card wraps from
+      // bottom back to top, handled invisibly by the wrap-hide below.
+      const item = this.items[slot % count]
 
       if (this._slotItems[slot] !== item) {
         this._cards[slot].style.backgroundImage = `url("${item.cover}")`
