@@ -119,6 +119,21 @@
     -webkit-backdrop-filter: blur(4px);
   }
 
+  /* ── Sheet positioning — responsive width/margins ── */
+  .sheet-content {
+    left: 16px;
+    right: 16px;
+  }
+  @media (min-width: 640px) {
+    .sheet-content {
+      left: 0;
+      right: 0;
+      margin-left: auto;
+      margin-right: auto;
+      width: min(calc(100vw - 16px), max(33.333vw, 480px));
+    }
+  }
+
   /* ── Sheet animations (Radix defers unmount until animationend) ── */
   @keyframes overlay-show {
     from { opacity: 0; }

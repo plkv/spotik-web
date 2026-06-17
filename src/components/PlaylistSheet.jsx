@@ -23,18 +23,18 @@ export function PlaylistSheet({ playlist, onClose }) {
         {/* Backdrop */}
         <Dialog.Overlay className="sheet-overlay fixed inset-0 z-40 bg-black/60 backdrop-blur-[16px]" />
 
+        {/* Close — fixed to viewport top-right, above everything */}
+        <Dialog.Close className="fixed top-5 right-5 z-[60] flex items-center justify-center w-10 h-10 rounded-full bg-black/40 text-white/80 hover:text-white transition-colors">
+          <X size={20} />
+        </Dialog.Close>
+
         {/* Sheet */}
         <Dialog.Content
-          style={{ width: 'min(calc(100vw - 16px), max(33.333vw, 480px))' }}
-          className="sheet-content fixed bottom-0 inset-x-0 mx-auto z-50 max-h-[calc(100dvh-24px)] flex flex-col"
+          className="sheet-content fixed bottom-0 z-50 max-h-[calc(100dvh-24px)] flex flex-col"
+          aria-describedby={undefined}
         >
-          {/* Close — floats over the cover image */}
-          <Dialog.Close className="absolute top-4 right-4 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-black/40 text-white/80 hover:text-white transition-colors">
-            <X size={20} />
-          </Dialog.Close>
-
           {/* Scrollable content */}
-          <div className="overflow-y-auto flex-1">
+          <div className="overflow-y-auto flex-1 min-h-0">
             {/* Cover */}
             <div className="aspect-square w-full overflow-hidden flex-shrink-0 rounded-xl">
               <img
