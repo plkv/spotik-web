@@ -36,6 +36,9 @@ export class Ticker {
 
     this._revealStart   = null  // non-null while fan animation is running
 
+    this._heldKey    = null   // 'ArrowUp' | 'ArrowDown' | null
+    this._holdStartT = 0      // performance.now() when key was first pressed
+
     // visibleCount slot elements — independent of items.length
     this._wraps     = []
     this._inners    = []
@@ -329,6 +332,14 @@ export class Ticker {
       return
     }
 
+    // Held arrow key: after 300ms hold, drive continuous scroll (~6 cards/s)
+    if (this._heldKey) {
+      const dir = (this._heldKey === 'ArrowDown' ? 1 : -1) * this._sign
+      if (performance.now() - this._holdStartT > 300) {
+        this._target += dir * 0.1 / CONFIG.visibleCount
+      }
+    }
+
     // Track card-level crossings: fires once per card that scrolls past
     const prevTick = Math.floor(this._phase * count)
     this._phase = this._phase + (this._target - this._phase) * CONFIG.smoothing
@@ -413,8 +424,16 @@ export class Ticker {
     if (document.querySelector('.sheet-overlay[data-state="open"]')) return
     e.preventDefault()
     this._stopAutoplay()
-    const step = 1 / Math.max(1, this.items.length)
-    this._target += (e.key === 'ArrowDown' ? 1 : -1) * step * this._sign
+    if (this._heldKey === e.key) return  // already held — RAF drives it
+    this._heldKey    = e.key
+    this._holdStartT = performance.now()
+    // Immediate first step: exactly one card
+    const dir = (e.key === 'ArrowDown' ? 1 : -1) * this._sign
+    this._target += dir / CONFIG.visibleCount
+  }
+
+  _onKeyUp = (e) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') this._heldKey = null
   }
 
   _onWheel = (e) => {
@@ -474,6 +493,7 @@ export class Ticker {
     this.container.addEventListener('pointerup',     this._onPointerEnd)
     this.container.addEventListener('pointercancel', this._onPointerEnd)
     document.addEventListener('keydown',             this._onKeyDown)
+    document.addEventListener('keyup',               this._onKeyUp)
   }
 
   _unbindEvents() {
@@ -483,5 +503,6 @@ export class Ticker {
     this.container.removeEventListener('pointerup',     this._onPointerEnd)
     this.container.removeEventListener('pointercancel', this._onPointerEnd)
     document.removeEventListener('keydown',             this._onKeyDown)
+    document.removeEventListener('keyup',               this._onKeyUp)
   }
 }
