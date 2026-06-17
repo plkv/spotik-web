@@ -28,72 +28,69 @@ export function PlaylistSheet({ playlist, onClose }) {
           <X size={20} />
         </Dialog.Close>
 
-        {/* Sheet */}
+        {/* Sheet — full-height so scroll has no top clip boundary */}
         <Dialog.Content
-          className="sheet-content fixed bottom-0 z-50 max-h-[calc(100dvh-24px)] flex flex-col"
+          className="sheet-content fixed top-0 bottom-0 z-50 overflow-y-auto"
           aria-describedby={undefined}
         >
-          {/* Scrollable content */}
-          <div className="overflow-y-auto flex-1 min-h-0">
-            {/* Cover */}
-            <div className="aspect-square w-full overflow-hidden flex-shrink-0 rounded-xl">
-              <img
-                src={p?.cover}
-                alt={p?.title}
-                className="w-full h-full object-cover block"
+          {/* Cover */}
+          <div className="aspect-square w-full overflow-hidden flex-shrink-0 rounded-xl">
+            <img
+              src={p?.cover}
+              alt={p?.title}
+              className="w-full h-full object-cover block"
+              loading="lazy"
+            />
+          </div>
+
+          {/* Body */}
+          <div className="flex flex-col gap-4 py-4 pb-16">
+            <Dialog.Title className="text-[26px] font-bold leading-tight">
+              {p?.title}
+            </Dialog.Title>
+
+            <p className="text-sm text-fg-2 leading-relaxed">
+              {p?.description}
+            </p>
+
+            {/* Tags */}
+            <div className="flex flex-wrap gap-1.5">
+              {p?.tags?.map(t => <Tag key={t} label={t} />)}
+            </div>
+
+            {/* Artists */}
+            <div className="flex flex-col gap-1">
+              <span className="text-[11px] font-semibold uppercase tracking-widest text-fg-3">
+                Artists
+              </span>
+              <p className="text-sm text-fg-2 leading-relaxed">
+                {p?.artists?.join(' · ')}
+              </p>
+            </div>
+
+            {/* Spotify widget */}
+            <div className="rounded-sm overflow-hidden">
+              <iframe
+                key={p?.spotifyId}
+                src={`https://open.spotify.com/embed/playlist/${p?.spotifyId}?utm_source=generator`}
+                width="100%"
+                height="152"
+                frameBorder="0"
+                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
                 loading="lazy"
+                className="block"
               />
             </div>
 
-            {/* Body */}
-            <div className="flex flex-col gap-4 py-4 pb-10">
-              <Dialog.Title className="text-[26px] font-bold leading-tight">
-                {p?.title}
-              </Dialog.Title>
-
-              <p className="text-sm text-fg-2 leading-relaxed">
-                {p?.description}
-              </p>
-
-              {/* Tags */}
-              <div className="flex flex-wrap gap-1.5">
-                {p?.tags?.map(t => <Tag key={t} label={t} />)}
-              </div>
-
-              {/* Artists */}
-              <div className="flex flex-col gap-1">
-                <span className="text-[11px] font-semibold uppercase tracking-widest text-fg-3">
-                  Artists
-                </span>
-                <p className="text-sm text-fg-2 leading-relaxed">
-                  {p?.artists?.join(' · ')}
-                </p>
-              </div>
-
-              {/* Spotify widget */}
-              <div className="rounded-sm overflow-hidden">
-                <iframe
-                  key={p?.spotifyId}
-                  src={`https://open.spotify.com/embed/playlist/${p?.spotifyId}?utm_source=generator`}
-                  width="100%"
-                  height="152"
-                  frameBorder="0"
-                  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                  loading="lazy"
-                  className="block"
-                />
-              </div>
-
-              {/* Open in Spotify */}
-              <a
-                href={p?.spotifyUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center w-full py-3.5 rounded-sm bg-accent text-bg text-sm font-bold hover:opacity-90 transition-opacity"
-              >
-                Open in Spotify ↗
-              </a>
-            </div>
+            {/* Open in Spotify */}
+            <a
+              href={p?.spotifyUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center w-full py-3.5 rounded-sm bg-accent text-bg text-sm font-bold hover:opacity-90 transition-opacity"
+            >
+              Open in Spotify ↗
+            </a>
           </div>
         </Dialog.Content>
       </Dialog.Portal>
