@@ -5,6 +5,7 @@ import { ViewToggle } from '@/components/ViewToggle'
 import { TickerView } from '@/components/TickerView'
 import { GridView } from '@/components/GridView'
 import { PlaylistSheet } from '@/components/PlaylistSheet'
+import { LoadingScreen } from '@/components/LoadingScreen'
 
 function readHash() {
   const id = window.location.hash.slice(1)
@@ -15,6 +16,7 @@ export function App() {
   const [view, setView]                 = useState('tape')
   const [activeFilters, setFilters]     = useState(new Set())
   const [openPlaylist, setOpenPlaylist] = useState(readHash)
+  const [revealed, setRevealed]         = useState(false)
 
   // Sync hash ↔ open sheet
   useEffect(() => {
@@ -40,6 +42,8 @@ export function App() {
 
   return (
     <>
+      <LoadingScreen items={PLAYLISTS} onReady={() => setRevealed(true)} />
+
       {/* Filter bar — top, scrollable horizontally */}
       <div className="absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-bg/90 to-transparent">
         <FilterBar
@@ -60,6 +64,7 @@ export function App() {
           items={filtered}
           active={view === 'tape'}
           onSelect={handleSelect}
+          ready={revealed}
         />
         <GridView
           items={filtered}

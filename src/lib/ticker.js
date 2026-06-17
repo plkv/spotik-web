@@ -19,8 +19,10 @@ const CONFIG = {
 
 const mod = (n, m) => ((n % m) + m) % m
 
+const easeOutQuart = t => 1 - (1 - t) ** 4
+
 export class Ticker {
-  constructor(container, items, { onSelect } = {}) {
+  constructor(container, items, { onSelect, active = true } = {}) {
     this.container = container
     this.items     = items
     this.onSelect  = onSelect || null
@@ -29,8 +31,10 @@ export class Ticker {
     this._target        = 0
     this._interacted    = false
     this._rafId         = null
-    this._active        = true
+    this._active        = active
     this._sign          = CONFIG.direction === 'down' ? 1 : -1
+
+    this._revealStart   = null  // non-null while fan animation is running
 
     // visibleCount slot elements — independent of items.length
     this._wraps     = []
@@ -81,6 +85,16 @@ export class Ticker {
   setActive(active) {
     this._active = active
     if (!active) this._wraps.forEach(w => { w.style.opacity = '0'; w.style.pointerEvents = 'none' })
+  }
+
+  // Fan-reveal from center: call once when loading is done.
+  reveal() {
+    this._active      = true
+    this._phase       = 0
+    this._target      = 0
+    this._revealStart = performance.now()
+    this._prevU.fill(-1)
+    this._wrapCount.fill(0)
   }
 
   destroy() {
@@ -205,9 +219,79 @@ export class Ticker {
 
   // ── Tick ─────────────────────────────────────────────────────────────────────
 
+  _tickReveal() {
+    const STAGGER_MS  = 700   // spread from focal → top
+    const CARD_MS     = 480   // each card's animation duration
+    const elapsed = performance.now() - this._revealStart
+    const { mapY, warp, scaleAt, vTop, vBottom } = this._geo
+    const h       = this._cardH
+    const spacing = 1 / CONFIG.visibleCount
+    const count   = this.items.length
+    if (!count) return
+
+    const startY = this._containerH * 0.5  // center of screen (thumbnail position)
+    let allDone  = true
+
+    for (let slot = 0; slot < CONFIG.visibleCount; slot++) {
+      const u      = mod(slot * spacing + this._phase, 1)
+      const finalCy = mapY(u)
+      const tw      = warp(u)
+      const finalS  = scaleAt(tw)
+
+      // Paint item
+      const item = this.items[mod(slot + this._wrapCount[slot], count)]
+      if (this._slotItems[slot] !== item) {
+        this._cards[slot].style.backgroundImage = `url("${item.cover}")`
+        this._tagEls[slot].innerHTML = (item.tags || [])
+          .map(t => `<span class="ticker-tag">${t}</span>`).join('')
+        this._slotItems[slot] = item
+      }
+
+      // Skip slots whose final position is outside the visible area
+      const finalTop = finalCy - (h * finalS) / 2
+      const finalBot = finalTop + h * finalS
+      if (finalBot < vTop - 100 || finalTop > vBottom + 100) {
+        this._wraps[slot].style.opacity      = '0'
+        this._wraps[slot].style.pointerEvents = 'none'
+        continue
+      }
+
+      // Stagger: bottom cards (focal, large) reveal first; top cards last.
+      // posNorm = 0 at bottom (vBottom), 1 at top (vTop).
+      const posNorm = (vBottom - finalCy) / Math.max(1, vBottom - vTop)
+      const delay   = posNorm * STAGGER_MS
+      const slotT   = Math.min(1, Math.max(0, elapsed - delay) / CARD_MS)
+      const easedT  = easeOutQuart(slotT)
+
+      if (slotT < 1) allDone = false
+
+      // Interpolate: center → final position; 20% of final scale → final scale
+      const startS = finalS * 0.2
+      const cy = startY + (finalCy - startY) * easedT
+      const s  = startS + (finalS  - startS) * easedT
+
+      const tc = Math.max(0, Math.min(1, tw))
+      this._wraps[slot].style.transform     = `translate3d(0,${cy - h * (1 - s) / 2}px,0)`
+      this._wraps[slot].style.zIndex        = String(1000 + Math.round(tc * 2000))
+      this._wraps[slot].style.opacity       = String(easedT)
+      this._wraps[slot].style.pointerEvents = 'none'
+      this._inners[slot].style.transform    = `translate3d(0,${-0.5 * h * s}px,0) scale(${s})`
+    }
+
+    if (allDone) {
+      // Seed _prevU so the first normal tick doesn't misfire wrap detection
+      for (let slot = 0; slot < CONFIG.visibleCount; slot++) {
+        this._prevU[slot] = mod(slot * (1 / CONFIG.visibleCount) + this._phase, 1)
+      }
+      this._revealStart = null
+    }
+  }
+
   _tick() {
     this._rafId = requestAnimationFrame(this._tick.bind(this))
     if (!this._active || !this._geo) return
+
+    if (this._revealStart !== null) { this._tickReveal(); return }
 
     const count = this.items.length
     if (count === 0) {
