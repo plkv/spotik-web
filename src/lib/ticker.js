@@ -407,6 +407,16 @@ export class Ticker {
     }
   }
 
+  _onKeyDown = (e) => {
+    if (!this._active) return
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
+    if (document.querySelector('.sheet-overlay[data-state="open"]')) return
+    e.preventDefault()
+    this._stopAutoplay()
+    const step = 1 / Math.max(1, this.items.length)
+    this._target += (e.key === 'ArrowDown' ? 1 : -1) * step * this._sign
+  }
+
   _onWheel = (e) => {
     if (!this._active) return
     e.preventDefault()
@@ -463,6 +473,7 @@ export class Ticker {
     this.container.addEventListener('pointermove',   this._onPointerMove)
     this.container.addEventListener('pointerup',     this._onPointerEnd)
     this.container.addEventListener('pointercancel', this._onPointerEnd)
+    document.addEventListener('keydown',             this._onKeyDown)
   }
 
   _unbindEvents() {
@@ -471,5 +482,6 @@ export class Ticker {
     this.container.removeEventListener('pointermove',   this._onPointerMove)
     this.container.removeEventListener('pointerup',     this._onPointerEnd)
     this.container.removeEventListener('pointercancel', this._onPointerEnd)
+    document.removeEventListener('keydown',             this._onKeyDown)
   }
 }
