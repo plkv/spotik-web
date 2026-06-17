@@ -19,7 +19,7 @@ export default {
         lg:      'var(--radius-lg)',
       },
       fontFamily: {
-        sans: ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'sans-serif'],
+        sans: ['"Apfel Grotezk"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
       },
     },
   },
