@@ -23,16 +23,15 @@ export function PlaylistSheet({ playlist, onClose }) {
         {/* Backdrop */}
         <Dialog.Overlay className="sheet-overlay fixed inset-0 z-40 bg-black/60 backdrop-blur-[16px]" />
 
-        {/* Close — fixed to viewport top-right, above everything */}
-        <Dialog.Close className="fixed top-5 right-5 z-[60] flex items-center justify-center w-10 h-10 rounded-full bg-black/40 text-white/80 hover:text-white transition-colors">
-          <X size={20} />
-        </Dialog.Close>
-
         {/* Sheet — full-height so scroll has no top clip boundary */}
         <Dialog.Content
           className="sheet-content fixed top-0 bottom-0 z-50 overflow-y-auto"
           aria-describedby={undefined}
         >
+          {/* Close — fixed to viewport top-right; inside Content so focus trap allows taps on mobile */}
+          <Dialog.Close className="fixed top-5 right-5 z-[60] flex items-center justify-center w-10 h-10 rounded-full bg-black/40 text-white/80 hover:text-white transition-colors">
+            <X size={20} />
+          </Dialog.Close>
           {/* Cover */}
           <div className="aspect-square w-full overflow-hidden flex-shrink-0 rounded-xl">
             <img
