@@ -61,6 +61,7 @@ export class Ticker {
         if (!this._audioCtx) this._initAudio()
         else if (this._audioCtx.state === 'suspended') this._audioCtx.resume()
       } catch {}
+      this._interacted = true  // stop autoplay on first touch anywhere on page
       document.removeEventListener('pointerdown', this._unlockAudio, true)
       document.removeEventListener('keydown',     this._unlockAudio, true)
     }
@@ -261,18 +262,19 @@ export class Ticker {
       const prevU = this._prevU[slot]
       this._prevU[slot] = u
 
-      // Slot wrapped this frame (teleported from bottom to top or vice versa).
-      // Hide for one frame to prevent GPU compositing from showing it at both
-      // the old and new position simultaneously (the "double image" artifact).
-      if (prevU >= 0 && Math.abs(u - prevU) > 0.5) {
-        this._wraps[slot].style.opacity      = '0'
-        this._wraps[slot].style.pointerEvents = 'none'
-        continue
-      }
-
       const cy = mapY(u)
       const tw = warp(u)
       const s  = scaleAt(tw)
+
+      // Slot wrapped this frame — pre-move to new position (opacity=0) so the
+      // GPU composites it there before we reveal it next frame. Without this,
+      // the old composited layer stays visible at the previous position.
+      if (prevU >= 0 && Math.abs(u - prevU) > 0.5) {
+        this._wraps[slot].style.transform     = `translate3d(0,${cy - h*(1-s)/2}px,0)`
+        this._wraps[slot].style.opacity       = '0'
+        this._wraps[slot].style.pointerEvents = 'none'
+        continue
+      }
 
       const top    = cy - (h * s) / 2
       const bottom = top + h * s

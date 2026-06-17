@@ -156,8 +156,8 @@ export const PLAYLISTS = [
     description: '',
     tags: [],
     artists: [],
-    spotifyId: '',
-    spotifyUrl: '',
+    spotifyId: '0vZXkcHdsNtez38HzEaCH3',
+    spotifyUrl: 'https://open.spotify.com/playlist/0vZXkcHdsNtez38HzEaCH3',
   },
   {
     id: 'desert-mirage-sands',

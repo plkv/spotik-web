@@ -1,4 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog'
+import { useRef } from 'react'
 import { X } from 'lucide-react'
 
 function Tag({ label }) {
@@ -11,6 +12,10 @@ function Tag({ label }) {
 
 export function PlaylistSheet({ playlist, onClose }) {
   const open = !!playlist
+  // Keep last non-null playlist during close animation so the image doesn't break
+  const lastRef = useRef(playlist)
+  if (playlist) lastRef.current = playlist
+  const p = lastRef.current
 
   return (
     <Dialog.Root open={open} onOpenChange={v => !v && onClose()}>
@@ -33,8 +38,8 @@ export function PlaylistSheet({ playlist, onClose }) {
             {/* Cover — flush to top, masked by sheet's rounded corners */}
             <div className="aspect-square w-full overflow-hidden flex-shrink-0">
               <img
-                src={playlist?.cover}
-                alt={playlist?.title}
+                src={p?.cover}
+                alt={p?.title}
                 className="w-full h-full object-cover block"
                 loading="lazy"
               />
@@ -43,16 +48,16 @@ export function PlaylistSheet({ playlist, onClose }) {
             {/* Body */}
             <div className="flex flex-col gap-4 p-5 pb-10">
               <Dialog.Title className="text-[26px] font-bold leading-tight">
-                {playlist?.title}
+                {p?.title}
               </Dialog.Title>
 
               <p className="text-sm text-fg-2 leading-relaxed">
-                {playlist?.description}
+                {p?.description}
               </p>
 
               {/* Tags */}
               <div className="flex flex-wrap gap-1.5">
-                {playlist?.tags?.map(t => <Tag key={t} label={t} />)}
+                {p?.tags?.map(t => <Tag key={t} label={t} />)}
               </div>
 
               {/* Artists */}
@@ -61,15 +66,15 @@ export function PlaylistSheet({ playlist, onClose }) {
                   Artists
                 </span>
                 <p className="text-sm text-fg-2 leading-relaxed">
-                  {playlist?.artists?.join(' · ')}
+                  {p?.artists?.join(' · ')}
                 </p>
               </div>
 
               {/* Spotify widget */}
               <div className="rounded-sm overflow-hidden">
                 <iframe
-                  key={playlist?.spotifyId}
-                  src={`https://open.spotify.com/embed/playlist/${playlist?.spotifyId}?utm_source=generator`}
+                  key={p?.spotifyId}
+                  src={`https://open.spotify.com/embed/playlist/${p?.spotifyId}?utm_source=generator`}
                   width="100%"
                   height="152"
                   frameBorder="0"
@@ -81,7 +86,7 @@ export function PlaylistSheet({ playlist, onClose }) {
 
               {/* Open in Spotify */}
               <a
-                href={playlist?.spotifyUrl}
+                href={p?.spotifyUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center w-full py-3.5 rounded-sm bg-accent text-bg text-sm font-bold hover:opacity-90 transition-opacity"
