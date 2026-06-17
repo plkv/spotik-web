@@ -10,7 +10,7 @@ export function LoadingScreen({ items, onReady }) {
   // Cycle thumbnails at ~220ms discrete cuts
   useEffect(() => {
     if (items.length === 0) return
-    const id = setInterval(() => setIdx(i => (i + 1) % items.length), 220)
+    const id = setInterval(() => setIdx(i => (i + 1) % items.length), 100)
     return () => clearInterval(id)
   }, [items.length])
 
