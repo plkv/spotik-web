@@ -26,7 +26,7 @@ export function PlaylistSheet({ playlist, onClose }) {
         {/* Sheet */}
         <Dialog.Content
           style={{ width: 'min(calc(100vw - 16px), max(33.333vw, 480px))' }}
-          className="sheet-content fixed bottom-0 inset-x-0 mx-auto z-50 max-h-[calc(100dvh-24px)] flex flex-col bg-surface/90 backdrop-blur-[16px] rounded-t-[var(--radius-lg)] overflow-hidden"
+          className="sheet-content fixed bottom-0 inset-x-0 mx-auto z-50 max-h-[calc(100dvh-24px)] flex flex-col"
         >
           {/* Close — floats over the cover image */}
           <Dialog.Close className="absolute top-4 right-4 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-black/40 text-white/80 hover:text-white transition-colors">
@@ -35,8 +35,8 @@ export function PlaylistSheet({ playlist, onClose }) {
 
           {/* Scrollable content */}
           <div className="overflow-y-auto flex-1">
-            {/* Cover — flush to top, masked by sheet's rounded corners */}
-            <div className="aspect-square w-full overflow-hidden flex-shrink-0">
+            {/* Cover */}
+            <div className="aspect-square w-full overflow-hidden flex-shrink-0 rounded-xl">
               <img
                 src={p?.cover}
                 alt={p?.title}
@@ -46,7 +46,7 @@ export function PlaylistSheet({ playlist, onClose }) {
             </div>
 
             {/* Body */}
-            <div className="flex flex-col gap-4 p-5 pb-10">
+            <div className="flex flex-col gap-4 py-4 pb-10">
               <Dialog.Title className="text-[26px] font-bold leading-tight">
                 {p?.title}
               </Dialog.Title>
