@@ -36,6 +36,7 @@ export class Ticker {
     this._wraps     = []
     this._inners    = []
     this._cards     = []
+    this._tagEls    = []  // .ticker-tags div per slot
     this._slotItems = []  // item currently painted in each slot (for click detection)
     this._prevU     = new Array(CONFIG.visibleCount).fill(-1)  // previous u per slot for wrap detection
     this._wrapCount = new Array(CONFIG.visibleCount).fill(0)   // how many times each slot has wrapped
@@ -151,6 +152,10 @@ export class Ticker {
       const card = document.createElement('div')
       card.className = 'ticker-card'
 
+      const tags = document.createElement('div')
+      tags.className = 'ticker-tags'
+      card.appendChild(tags)
+
       inner.appendChild(card)
       wrap.appendChild(inner)
       this.container.appendChild(wrap)
@@ -158,6 +163,7 @@ export class Ticker {
       this._wraps.push(wrap)
       this._inners.push(inner)
       this._cards.push(card)
+      this._tagEls.push(tags)
       this._slotItems.push(null)
     }
 
@@ -220,6 +226,9 @@ export class Ticker {
 
       if (this._slotItems[0] !== item) {
         this._cards[0].style.backgroundImage = `url("${item.cover}")`
+        this._tagEls[0].innerHTML = (item.tags || [])
+          .map(t => `<span class="ticker-tag">${t}</span>`)
+          .join('')
         this._slotItems[0] = item
       }
 
@@ -268,6 +277,9 @@ export class Ticker {
 
       if (this._slotItems[slot] !== item) {
         this._cards[slot].style.backgroundImage = `url("${item.cover}")`
+        this._tagEls[slot].innerHTML = (item.tags || [])
+          .map(t => `<span class="ticker-tag">${t}</span>`)
+          .join('')
         this._slotItems[slot] = item
       }
 
