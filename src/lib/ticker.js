@@ -38,6 +38,7 @@ export class Ticker {
     this._cards     = []
     this._slotItems = []  // item currently painted in each slot (for click detection)
     this._prevU     = new Array(CONFIG.visibleCount).fill(-1)  // previous u per slot for wrap detection
+    this._wrapCount = new Array(CONFIG.visibleCount).fill(0)   // how many times each slot has wrapped
 
     // Geometry cache — recomputed only on resize, not per frame
     this._cardH      = 0
@@ -73,6 +74,7 @@ export class Ticker {
 
   setItems(items) {
     this.items = items
+    this._wrapCount.fill(0)
   }
 
   setActive(active) {
@@ -250,28 +252,31 @@ export class Ticker {
     const h       = this._cardH
 
     for (let slot = 0; slot < CONFIG.visibleCount; slot++) {
-      // Each slot owns a fixed item; items[slot % count] never changes between
-      // slots, so there is no cross-slot handover that would cause a position jump.
-      // The slot's u position cycles 0→1 continuously; the same card wraps from
-      // bottom back to top, handled invisibly by the wrap-hide below.
-      const item = this.items[slot % count]
+      const u     = mod(slot * spacing + this._phase, 1)
+      const prevU = this._prevU[slot]
+      this._prevU[slot] = u
+
+      // When there are more items than slots, advance this slot's item on each
+      // wrap so every item becomes reachable by scrolling. For count ≤ visibleCount
+      // wrapCount stays 0 — each slot keeps the same item forever (no jump artifact).
+      if (count > CONFIG.visibleCount && prevU >= 0 && Math.abs(u - prevU) > 0.5) {
+        if (u < prevU - 0.5) this._wrapCount[slot]++
+        else                  this._wrapCount[slot]--
+      }
+
+      const item = this.items[mod(slot + this._wrapCount[slot], count)]
 
       if (this._slotItems[slot] !== item) {
         this._cards[slot].style.backgroundImage = `url("${item.cover}")`
         this._slotItems[slot] = item
       }
 
-      const u     = mod(slot * spacing + this._phase, 1)
-      const prevU = this._prevU[slot]
-      this._prevU[slot] = u
-
       const cy = mapY(u)
       const tw = warp(u)
       const s  = scaleAt(tw)
 
       // Slot wrapped this frame — pre-move to new position (opacity=0) so the
-      // GPU composites it there before we reveal it next frame. Without this,
-      // the old composited layer stays visible at the previous position.
+      // GPU composites it there before we reveal it next frame.
       if (prevU >= 0 && Math.abs(u - prevU) > 0.5) {
         this._wraps[slot].style.transform     = `translate3d(0,${cy - h*(1-s)/2}px,0)`
         this._wraps[slot].style.opacity       = '0'
