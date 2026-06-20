@@ -10,16 +10,6 @@ export const PLAYLISTS = [
     spotifyUrl: 'https://open.spotify.com/playlist/0lB79SAgFp1TyBJG8ZSwWp',
   },
   {
-    id: '16yo-boys-cd-player',
-    cover: "/covers/16yo boy's CD player.png",
-    title: "16yo boy's CD player",
-    description: '',
-    tags: ['Indie', '90s', 'Dreamy'],
-    artists: [],
-    spotifyId: '5WMvBbdn1YhIQq7eE1ZGW7',
-    spotifyUrl: 'https://open.spotify.com/playlist/5WMvBbdn1YhIQq7eE1ZGW7',
-  },
-  {
     id: 'aerobica-oscuro',
     cover: '/covers/Aeróbica Oscuro.png',
     title: 'Aeróbica Oscuro',

@@ -1,22 +1,5 @@
 import { useMemo } from 'react'
-import { cn } from '@/lib/utils'
-
-function Chip({ label, active, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'flex-shrink-0 px-3 py-[5px] rounded-full border text-xs font-medium whitespace-nowrap',
-        'transition-colors duration-150',
-        active
-          ? 'bg-fg text-bg border-transparent'
-          : 'bg-transparent text-fg-2 border-border hover:border-white/20 hover:text-fg',
-      )}
-    >
-      {label}
-    </button>
-  )
-}
+import { StickerTag } from '@/components/StickerTag'
 
 export function FilterBar({ playlists, activeFilters, onChange }) {
   const tags = useMemo(() => {
@@ -33,9 +16,9 @@ export function FilterBar({ playlists, activeFilters, onChange }) {
 
   return (
     <div className="flex gap-1.5 overflow-x-auto pb-2 pt-3 px-3">
-      <Chip label="All" active={activeFilters.size === 0} onClick={() => onChange(new Set())} />
+      <StickerTag label="All" variant={5} active={activeFilters.size === 0} onClick={() => onChange(new Set())} />
       {tags.map(tag => (
-        <Chip key={tag} label={tag} active={activeFilters.has(tag)} onClick={() => toggle(tag)} />
+        <StickerTag key={tag} label={tag} variant={1} active={activeFilters.has(tag)} onClick={() => toggle(tag)} />
       ))}
     </div>
   )

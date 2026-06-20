@@ -1,14 +1,7 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { useRef } from 'react'
 import { X } from 'lucide-react'
-
-function Tag({ label }) {
-  return (
-    <span className="px-2.5 py-1 rounded-full border border-border text-fg-3 text-[11px] font-semibold uppercase tracking-wider">
-      {label}
-    </span>
-  )
-}
+import { StickerTag } from '@/components/StickerTag'
 
 export function PlaylistSheet({ playlist, onClose }) {
   const open = !!playlist
@@ -55,7 +48,9 @@ export function PlaylistSheet({ playlist, onClose }) {
 
             {/* Tags */}
             <div className="flex flex-wrap gap-1.5">
-              {p?.tags?.map(t => <Tag key={t} label={t} />)}
+              {p?.tags?.map((t, i) => (
+                <StickerTag key={t} label={t} variant={[1, 2, 5][i % 3]} />
+              ))}
             </div>
 
             {/* Artists */}

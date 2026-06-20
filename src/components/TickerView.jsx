@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { Ticker } from '@/lib/ticker'
 
-export function TickerView({ items, active, onSelect, ready }) {
+export function TickerView({ items, active, onSelect, ready, expanded, openId, apiRef }) {
   const containerRef = useRef(null)
   const tickerRef    = useRef(null)
 
@@ -9,9 +9,11 @@ export function TickerView({ items, active, onSelect, ready }) {
   useEffect(() => {
     if (!containerRef.current) return
     tickerRef.current = new Ticker(containerRef.current, items, { onSelect, active: false })
+    if (apiRef) apiRef.current = tickerRef.current
     return () => {
       tickerRef.current?.destroy()
       tickerRef.current = null
+      if (apiRef) apiRef.current = null
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -31,6 +33,16 @@ export function TickerView({ items, active, onSelect, ready }) {
     if (!ready) return
     tickerRef.current?.setActive(active)
   }, [active, ready])
+
+  // Drive the ticker from the panel-open state: focus the card (or suppress the
+  // deck) when open — handles deep-link/hash opens too — and collapse on close.
+  useEffect(() => {
+    if (!ready) return
+    const tk = tickerRef.current
+    if (!tk) return
+    if (expanded) tk.focusItem(openId)
+    else tk.unfocus()
+  }, [expanded, openId, ready])
 
   return (
     <div

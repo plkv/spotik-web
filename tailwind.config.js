@@ -20,6 +20,7 @@ export default {
       },
       fontFamily: {
         sans: ['"Apfel Grotezk"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        lore: ['"LORE Bold"', '"Apfel Grotezk"', 'sans-serif'],
       },
     },
   },
