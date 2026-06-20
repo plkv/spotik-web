@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { Ticker } from '@/lib/ticker'
 
-export function TickerView({ items, active, onSelect, ready, expanded, openId, apiRef }) {
+export function TickerView({ items, active, onSelect, ready, expanded, openId, grid }) {
   const containerRef = useRef(null)
   const tickerRef    = useRef(null)
 
@@ -9,11 +9,9 @@ export function TickerView({ items, active, onSelect, ready, expanded, openId, a
   useEffect(() => {
     if (!containerRef.current) return
     tickerRef.current = new Ticker(containerRef.current, items, { onSelect, active: false })
-    if (apiRef) apiRef.current = tickerRef.current
     return () => {
       tickerRef.current?.destroy()
       tickerRef.current = null
-      if (apiRef) apiRef.current = null
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -43,6 +41,11 @@ export function TickerView({ items, active, onSelect, ready, expanded, openId, a
     if (expanded) tk.focusItem(openId)
     else tk.unfocus()
   }, [expanded, openId, ready])
+
+  // Same cards morph between carousel and grid layouts.
+  useEffect(() => {
+    if (ready) tickerRef.current?.setGrid(!!grid)
+  }, [grid, ready])
 
   return (
     <div

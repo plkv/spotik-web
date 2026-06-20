@@ -91,6 +91,12 @@ const FOCUS_SCALE = 0.84    // card width = natural × this (= content column wi
 const FOCUS_MS    = 620     // duration of the (eased) focus in/out animation
 const easeInOutCubic = t => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2)
 
+// Carousel ⇄ grid morph
+const MORPH_MS  = 620
+const GRID_GAP  = 4
+const GRID_PAD  = 8
+const SCROLL_REF = 32   // scroll feel is tuned for 32 slots; keep it constant as N varies
+
 export class Ticker {
   constructor(container, items, { onSelect, active = true } = {}) {
     this.container = container
@@ -113,13 +119,22 @@ export class Ticker {
     this._focus      = null
     this._suppress   = false
 
+    // One element per item (no slot-recycling) so the SAME cards can lay out as
+    // either the carousel or the grid. _morph: 0 = carousel, 1 = grid.
+    this._vc         = Math.max(1, this.items.length)
+    this._morph      = 0
+    this._morphTarget = 0
+    this._morphStart = 0
+    this._morphFrom  = 0
+    this._gridScroll = 0
+
     this._wraps     = []
     this._inners    = []
     this._cards     = []
     this._tagEls    = []
     this._slotItems = []
-    this._prevU     = new Array(CONFIG.visibleCount).fill(-1)
-    this._wrapCount = new Array(CONFIG.visibleCount).fill(0)
+    this._prevU     = new Array(this._vc).fill(-1)
+    this._wrapCount = new Array(this._vc).fill(0)
 
     this._cardH      = 0
     this._containerH = 0
@@ -153,7 +168,19 @@ export class Ticker {
     this.items = items
     this._focus = null
     this._suppress = false
-    this._wrapCount.fill(0)
+    const n = Math.max(1, items.length)
+    if (n !== this._vc) {
+      // Rebuild one element per item so the count matches (filtering changed it).
+      this._wraps.forEach(w => w.remove())
+      this._wraps = []; this._inners = []; this._cards = []; this._tagEls = []; this._slotItems = []
+      this._vc = n
+      this._prevU = new Array(n).fill(-1)
+      this._wrapCount = new Array(n).fill(0)
+      this._createSlots()
+    } else {
+      this._prevU.fill(-1)
+      this._wrapCount.fill(0)
+    }
   }
 
   setActive(active) {
@@ -225,7 +252,16 @@ export class Ticker {
       'position:absolute;visibility:hidden;pointer-events:none;left:-9999px;top:-9999px;'
     this.container.appendChild(this._measureCard)
 
-    for (let i = 0; i < CONFIG.visibleCount; i++) {
+    this._createSlots()
+
+    this._measure()
+    this._ro = new ResizeObserver(() => this._measure())
+    this._ro.observe(this.container)
+  }
+
+  // Create one DOM element per item (this._vc of them).
+  _createSlots() {
+    for (let i = 0; i < this._vc; i++) {
       const wrap = document.createElement('div')
       wrap.className = 'ticker-wrap'
       wrap.style.cssText =
@@ -253,17 +289,51 @@ export class Ticker {
       this._tagEls.push(tags)
       this._slotItems.push(null)
     }
-
-    this._measure()
-    this._ro = new ResizeObserver(() => this._measure())
-    this._ro.observe(this.container)
   }
 
   _measure() {
     this._containerH = this.container.clientHeight
+    this._containerW = this.container.clientWidth
     this._cardH      = Math.max(1, this._measureCard.clientHeight || 230)
     this._geo        = this._computeGeo()
   }
+
+  // ── Grid layout (same elements, laid out as a grid) ──────────────────────────
+
+  _gridCols()  { return this._containerW >= 640 ? 3 : 2 }
+  _gridCellW() {
+    const cols = this._gridCols()
+    return (this._containerW - 2 * GRID_PAD - (cols - 1) * GRID_GAP) / cols
+  }
+  // Cell centre + scale for item index i (accounts for grid scroll).
+  _gridLayout(i) {
+    const cols  = this._gridCols()
+    const cellW = this._gridCellW()
+    const col = i % cols, row = Math.floor(i / cols)
+    return {
+      gx: GRID_PAD + col * (cellW + GRID_GAP) + cellW / 2,
+      gy: GRID_PAD + row * (cellW + GRID_GAP) + cellW / 2 - this._gridScroll,
+      gs: cellW / this._cardH,
+    }
+  }
+  _gridMaxScroll() {
+    const cols  = this._gridCols()
+    const cellW = this._gridCellW()
+    const rows  = Math.ceil(this._vc / cols)
+    const gridH = GRID_PAD * 2 + rows * cellW + (rows - 1) * GRID_GAP
+    return Math.max(0, gridH - this._containerH)
+  }
+
+  // Toggle between carousel (false) and grid (true) — the same cards morph.
+  setGrid(on) {
+    const target = on ? 1 : 0
+    if (this._morphTarget === target) return
+    this._morphTarget = target
+    this._morphFrom   = this._morph
+    this._morphStart  = performance.now()
+    if (on) this._gridScroll = 0
+  }
+  isGrid() { return this._morphTarget === 1 }
 
   _computeGeo() {
     const pad    = CONFIG.padding
@@ -294,7 +364,7 @@ export class Ticker {
   // at u = 0.5 moves the seam to the hidden antipode (dist ±VC/2), far from any
   // visible card, so the swap is invisible.
   _dist(u) {
-    return (u - 0.5) * CONFIG.visibleCount
+    return (u - 0.5) * this._vc
   }
 
   // Placement for a card at the given signed distance from active.
@@ -321,14 +391,14 @@ export class Ticker {
     const elapsed = performance.now() - this._revealStart
     const { vTop, vBottom } = this._geo
     const h       = this._cardH
-    const spacing = 1 / CONFIG.visibleCount
+    const spacing = 1 / this._vc
     const count   = this.items.length
     if (!count) return
 
     const startY = this._containerH * 0.5
     let allDone  = true
 
-    for (let slot = 0; slot < CONFIG.visibleCount; slot++) {
+    for (let slot = 0; slot < this._vc; slot++) {
       const u    = mod(slot * spacing + this._phase, 1)
       const dist = this._dist(u)
       const L    = this._layout(dist)
@@ -372,8 +442,8 @@ export class Ticker {
     }
 
     if (allDone) {
-      for (let slot = 0; slot < CONFIG.visibleCount; slot++) {
-        this._prevU[slot] = mod(slot * (1 / CONFIG.visibleCount) + this._phase, 1)
+      for (let slot = 0; slot < this._vc; slot++) {
+        this._prevU[slot] = mod(slot * (1 / this._vc) + this._phase, 1)
       }
       this._revealStart = null
     }
@@ -388,7 +458,7 @@ export class Ticker {
   // deck so it doesn't render behind the panel.
   focusItem(id) {
     if (this._focus) return
-    for (let i = 0; i < CONFIG.visibleCount; i++) {
+    for (let i = 0; i < this._vc; i++) {
       if (this._slotItems[i] && this._slotItems[i].id === id) {
         this._startFocus(i, this._slotItems[i]); return
       }
@@ -398,9 +468,12 @@ export class Ticker {
 
   _startFocus(slot, item) {
     if (this._focus || !this._geo) return
+    // In grid mode there's no carousel "fly" — just hide the deck; the modal
+    // panel renders the cover over it.
+    if (this._morph > 0.5) { this._suppress = true; return }
     this._suppress = false
     this._stopAutoplay()
-    const spacing = 1 / CONFIG.visibleCount
+    const spacing = 1 / this._vc
     const L = this._layout(this._dist(mod(slot * spacing + this._phase, 1)))
     const anchor = { cy: L.cy, s: L.s, tilt: L.tilt, squash: L.squash }
     const targetFrac = 0.5 - slot * spacing
@@ -413,7 +486,7 @@ export class Ticker {
   // FLIP-animate between the carousel and the grid.
   getVisibleCards() {
     const out = []
-    for (let slot = 0; slot < CONFIG.visibleCount; slot++) {
+    for (let slot = 0; slot < this._vc; slot++) {
       const w = this._wraps[slot]
       if (!w.style.opacity || +w.style.opacity < 0.5) continue
       const item = this._slotItems[slot]
@@ -444,10 +517,10 @@ export class Ticker {
     const handed = f.dir === 1 && f.openAt > 0 && performance.now() - f.openAt > 440
     const h = this._cardH
     const H = this._containerH
-    const spacing = 1 / CONFIG.visibleCount
+    const spacing = 1 / this._vc
     const fCy = FOCUS_TOP + 0.5 * h * FOCUS_SCALE
 
-    for (let slot = 0; slot < CONFIG.visibleCount; slot++) {
+    for (let slot = 0; slot < this._vc; slot++) {
       if (slot === f.slot) {
         const a = f.anchor
         const cy     = a.cy + (fCy - a.cy) * p
@@ -500,6 +573,14 @@ export class Ticker {
       return
     }
 
+    // Advance the carousel⇄grid morph.
+    if (this._morph !== this._morphTarget) {
+      const t = Math.min(1, (performance.now() - this._morphStart) / MORPH_MS)
+      this._morph = this._morphFrom + (this._morphTarget - this._morphFrom) * easeInOutCubic(t)
+      if (t >= 1) this._morph = this._morphTarget
+    }
+    const grid = this._morphTarget === 1 || this._morph > 0.0001
+
     const count = this.items.length
     if (count === 0) {
       this._wraps.forEach(w => { w.style.opacity = '0'; w.style.pointerEvents = 'none' })
@@ -522,50 +603,52 @@ export class Ticker {
       this._wraps[0].style.opacity       = '1'
       this._wraps[0].style.pointerEvents = 'auto'
       this._inners[0].style.transform    = `translate3d(0,${-0.5 * h * s}px,0) scale(${s})`
-      for (let i = 1; i < CONFIG.visibleCount; i++) {
+      for (let i = 1; i < this._vc; i++) {
         this._wraps[i].style.opacity      = '0'
         this._wraps[i].style.pointerEvents = 'none'
       }
       return
     }
 
-    if (this._heldKey) {
-      this._lastInput = performance.now()
-      const dir = (this._heldKey === 'ArrowDown' ? 1 : -1) * this._sign
-      if (performance.now() - this._holdStartT > 300) {
-        this._target += dir * 0.1 / CONFIG.visibleCount
+    if (!grid) {
+      if (this._heldKey) {
+        this._lastInput = performance.now()
+        const dir = (this._heldKey === 'ArrowDown' ? 1 : -1) * this._sign
+        if (performance.now() - this._holdStartT > 300) {
+          this._target += dir * 0.1 / this._vc
+        }
+      }
+
+      // Magnetic snap: once the user stops scrolling for ~1s, ease the phase onto
+      // the nearest card step (active card exactly straight) with a slight
+      // overshoot/bounce.
+      if (!this._snap && this._interacted && !this._heldKey && this._dragState.id === null &&
+          performance.now() - this._lastInput > 1000) {
+        const aligned = Math.round(this._target * this._vc) / this._vc
+        if (Math.abs(this._phase - aligned) > 1e-4) {
+          this._snap = { from: this._phase, to: aligned, start: performance.now() }
+          this._target = aligned
+        }
+      }
+
+      if (this._snap) {
+        const t = Math.min(1, (performance.now() - this._snap.start) / SNAP_MS)
+        this._phase = this._snap.from + (this._snap.to - this._snap.from) * easeOutBack(t)
+        if (t >= 1) { this._phase = this._snap.to; this._snap = null }
+      } else {
+        const prevTick = Math.floor(this._phase * count)
+        this._phase = this._phase + (this._target - this._phase) * CONFIG.smoothing
+        if (!this._interacted) this._target += this._sign * CONFIG.autoplay
+        if (this._interacted) {
+          const newTick = Math.floor(this._phase * count)
+          if (newTick !== prevTick) this._playTick()
+        }
       }
     }
 
-    // Magnetic snap: once the user stops scrolling for ~1s, ease the phase onto
-    // the nearest card step (active card exactly straight) with a slight
-    // overshoot/bounce.
-    if (!this._snap && this._interacted && !this._heldKey && this._dragState.id === null &&
-        performance.now() - this._lastInput > 1000) {
-      const aligned = Math.round(this._target * CONFIG.visibleCount) / CONFIG.visibleCount
-      if (Math.abs(this._phase - aligned) > 1e-4) {
-        this._snap = { from: this._phase, to: aligned, start: performance.now() }
-        this._target = aligned
-      }
-    }
-
-    if (this._snap) {
-      const t = Math.min(1, (performance.now() - this._snap.start) / SNAP_MS)
-      this._phase = this._snap.from + (this._snap.to - this._snap.from) * easeOutBack(t)
-      if (t >= 1) { this._phase = this._snap.to; this._snap = null }
-    } else {
-      const prevTick = Math.floor(this._phase * count)
-      this._phase = this._phase + (this._target - this._phase) * CONFIG.smoothing
-      if (!this._interacted) this._target += this._sign * CONFIG.autoplay
-      if (this._interacted) {
-        const newTick = Math.floor(this._phase * count)
-        if (newTick !== prevTick) this._playTick()
-      }
-    }
-
-    const spacing = 1 / CONFIG.visibleCount
+    const spacing = 1 / this._vc
     const h       = this._cardH
-    const VC      = CONFIG.visibleCount
+    const VC      = this._vc
 
     // ── Pass 1: advance items + wrap bookkeeping, store each slot's u ──────────
     const slotU       = new Float64Array(VC)
@@ -592,39 +675,41 @@ export class Ticker {
       }
     }
 
-    // ── Pass 2: place every card by its signed distance from the active one ────
-    // dist = 0 → centred & frontal; dist < 0 → tail (behind/above, smaller);
-    // dist > 0 → foreground (in front/below, larger, tilted toward viewer).
+    // ── Pass 2: place every card. Each is interpolated between its carousel
+    // layout (dist-based deck) and its grid cell by the morph progress, so the
+    // SAME elements assemble into either the carousel or the grid.
+    const m  = this._morph
+    const W  = this._containerW
     for (let slot = 0; slot < VC; slot++) {
-      // Item just swapped under this slot — hide for one frame to avoid a flash.
-      if (slotWrapped[slot]) {
-        this._wraps[slot].style.opacity       = '0'
-        this._wraps[slot].style.pointerEvents = 'none'
-        continue
-      }
-
       const dist = this._dist(slotU[slot])
       const L    = this._layout(dist)
 
-      if (!L.visible) {
+      // Pure carousel: hidden far cards stay hidden (no grid to fill).
+      if (m < 0.0001 && !L.visible) {
         this._wraps[slot].style.opacity       = '0'
         this._wraps[slot].style.pointerEvents = 'none'
         continue
       }
 
-      // Every card uses the same centre-pivot transform — a single continuous
-      // path, so the active never "snaps" into a different render mode. The
-      // foreground's forward flip (negative tilt) makes its top edge grow toward
-      // the viewer and its bottom edge shrink away: the card falls onto us.
-      const s  = L.s
-      const sy = (s * L.squash).toFixed(4)
-      this._wraps[slot].style.transform     = `translate3d(0,${(L.cy - h * (1 - s) / 2).toFixed(2)}px,0)`
+      let cX = W / 2, cY = L.cy, sc = L.s, tl = L.tilt, sq = L.squash, op = L.op
+      if (m > 0.0001) {
+        const g = this._gridLayout(slot)
+        cX = W / 2 + (g.gx - W / 2) * m
+        cY = L.cy  + (g.gy - L.cy)  * m
+        sc = L.s   + (g.gs - L.s)   * m
+        tl = L.tilt * (1 - m)
+        sq = L.squash + (1 - L.squash) * m
+        op = L.op  + (1 - L.op) * m
+      }
+
+      const sy = (sc * sq).toFixed(4)
+      this._wraps[slot].style.transform     = `translate3d(${(cX - W / 2).toFixed(2)}px,${(cY - h * (1 - sc) / 2).toFixed(2)}px,0)`
       this._wraps[slot].style.zIndex        = String(L.z)
-      this._wraps[slot].style.opacity       = L.op.toFixed(3)
-      this._wraps[slot].style.pointerEvents = L.op > 0.5 ? 'auto' : 'none'
-      this._inners[slot].style.transform    = Math.abs(L.tilt) > 0.2
-        ? `perspective(600px) rotateX(${L.tilt.toFixed(1)}deg) translate3d(0,${(-0.5 * h * s).toFixed(2)}px,0) scale(${s.toFixed(4)},${sy})`
-        : `translate3d(0,${(-0.5 * h * s).toFixed(2)}px,0) scale(${s.toFixed(4)},${sy})`
+      this._wraps[slot].style.opacity       = op.toFixed(3)
+      this._wraps[slot].style.pointerEvents = op > 0.5 ? 'auto' : 'none'
+      this._inners[slot].style.transform    = Math.abs(tl) > 0.2
+        ? `perspective(600px) rotateX(${tl.toFixed(1)}deg) translate3d(0,${(-0.5 * h * sc).toFixed(2)}px,0) scale(${sc.toFixed(4)},${sy})`
+        : `translate3d(0,${(-0.5 * h * sc).toFixed(2)}px,0) scale(${sc.toFixed(4)},${sy})`
     }
   }
 
@@ -638,7 +723,7 @@ export class Ticker {
   }
 
   _onKeyDown = (e) => {
-    if (!this._active || this._focus) return
+    if (!this._active || this._focus || this.isGrid()) return
     if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
     e.preventDefault()
     this._stopAutoplay()
@@ -646,7 +731,7 @@ export class Ticker {
     this._heldKey    = e.key
     this._holdStartT = performance.now()
     const dir = (e.key === 'ArrowDown' ? 1 : -1) * this._sign
-    this._target += dir / CONFIG.visibleCount
+    this._target += dir / this._vc
   }
 
   _onKeyUp = (e) => {
@@ -658,7 +743,11 @@ export class Ticker {
     e.preventDefault()
     this._stopAutoplay()
     const dy = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX
-    this._target += dy * CONFIG.speedPerPixel * CONFIG.wheel
+    if (this.isGrid()) {
+      this._gridScroll = Math.max(0, Math.min(this._gridMaxScroll(), this._gridScroll + dy))
+    } else {
+      this._target += dy * CONFIG.speedPerPixel * CONFIG.wheel * (SCROLL_REF / this._vc)
+    }
   }
 
   _dragState = { id: null, lastY: null, startY: null, startTarget: null, dragged: false }
@@ -686,7 +775,11 @@ export class Ticker {
     this._snap      = null
     const dy = e.clientY - (this._dragState.lastY ?? e.clientY)
     this._dragState.lastY = e.clientY
-    this._target += dy * CONFIG.speedPerPixel * CONFIG.drag * this._sign
+    if (this.isGrid()) {
+      this._gridScroll = Math.max(0, Math.min(this._gridMaxScroll(), this._gridScroll - dy))
+    } else {
+      this._target += dy * CONFIG.speedPerPixel * CONFIG.drag * this._sign * (SCROLL_REF / this._vc)
+    }
   }
 
   _onPointerEnd = (e) => {
