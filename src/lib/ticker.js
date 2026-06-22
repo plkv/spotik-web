@@ -367,6 +367,19 @@ export class Ticker {
     return (u - 0.5) * this._vc
   }
 
+  // The phase value nearest `p` at which some card sits exactly on the active
+  // slot (u = 0.5). A card is active when phase·vc ≡ 0.5·vc (mod 1): that's an
+  // integer for an even item count but a HALF-integer for an odd one. Rounding
+  // phase·vc to the nearest integer (ignoring this offset) would, for odd vc,
+  // snap to a phase where NO card is active — leaving the deck stranded half a
+  // card off (a cover hung between active and fallen, and a one-card jump when
+  // the modal closes). Respect the offset so the snap always lands a real card
+  // on the active slot.
+  _alignPhase(p) {
+    const off = (this._vc % 2) * 0.5
+    return (Math.round(p * this._vc - off) + off) / this._vc
+  }
+
   // Placement for a card at the given signed distance from active.
   _layout(dist) {
     return {
@@ -619,12 +632,13 @@ export class Ticker {
         }
       }
 
-      // Magnetic snap: once the user stops scrolling for ~1s, ease the phase onto
-      // the nearest card step (active card exactly straight) with a slight
-      // overshoot/bounce.
+      // Magnetic snap: shortly after the user stops scrolling, ease the phase
+      // onto the nearest card step (active card exactly straight) with a slight
+      // overshoot/bounce. Kept short so a cover never lingers half-fallen
+      // between the active slot and the foreground — it commits up or down fast.
       if (!this._snap && this._interacted && !this._heldKey && this._dragState.id === null &&
-          performance.now() - this._lastInput > 1000) {
-        const aligned = Math.round(this._target * this._vc) / this._vc
+          performance.now() - this._lastInput > 240) {
+        const aligned = this._alignPhase(this._target)
         if (Math.abs(this._phase - aligned) > 1e-4) {
           this._snap = { from: this._phase, to: aligned, start: performance.now() }
           this._target = aligned
@@ -693,13 +707,24 @@ export class Ticker {
 
       let cX = W / 2, cY = L.cy, sc = L.s, tl = L.tilt, sq = L.squash, op = L.op
       if (m > 0.0001) {
+        // Carousel "from" position for the morph. Off-screen deck cards have no
+        // real place on screen — instead of fading them in from the top/bottom
+        // edge, grow them out of the screen centre so the grid assembles through
+        // the middle. No opacity in the transition: cards only move and scale.
+        let baseCy = L.cy, baseS = L.s, baseTilt = L.tilt, baseSq = L.squash
+        if (!L.visible) {
+          baseCy   = this._containerH * 0.5
+          baseS    = L.s * 0.6
+          baseTilt = 0
+          baseSq   = 1
+        }
         const g = this._gridLayout(slot)
-        cX = W / 2 + (g.gx - W / 2) * m
-        cY = L.cy  + (g.gy - L.cy)  * m
-        sc = L.s   + (g.gs - L.s)   * m
-        tl = L.tilt * (1 - m)
-        sq = L.squash + (1 - L.squash) * m
-        op = L.op  + (1 - L.op) * m
+        cX = W / 2   + (g.gx - W / 2)  * m
+        cY = baseCy  + (g.gy - baseCy) * m
+        sc = baseS   + (g.gs - baseS)  * m
+        tl = baseTilt * (1 - m)
+        sq = baseSq + (1 - baseSq) * m
+        op = 1
       }
 
       const sy = (sc * sq).toFixed(4)
